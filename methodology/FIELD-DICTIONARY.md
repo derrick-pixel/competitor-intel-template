@@ -78,14 +78,48 @@ Top-level shape: `{ meta, market_size, policies[], cultural_signals[], economic_
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `tam_sgd` | number | yes | Total Addressable Market in SGD |
-| `sam_sgd` | number | yes | Serviceable Addressable Market in SGD |
-| `som_sgd` | number | yes | Serviceable Obtainable Market in SGD |
-| `reasoning` | string | yes | Short prose on how TAM/SAM/SOM were derived |
+| `tam_sgd` | number | yes | Total Addressable Market (numeric, in the project's primary currency — `currency_label` controls display) |
+| `sam_sgd` | number | yes | Serviceable Addressable Market |
+| `som_sgd` | number | yes | Serviceable Obtainable Market |
+| `currency_label` | string | no | Display prefix for the three figures and every `result_label`. Defaults to `"SGD"`. Use `"AUD"`, `"HKD"`, `"USD"`, etc. when the project's primary currency is not SGD. The field name suffix `_sgd` is preserved for template compatibility regardless. |
+| `derivation_flow` | object | yes | Structured TAM → SAM → SOM funnel. See §5.1.1. Replaces the legacy `reasoning` wall-of-text; once populated, the renderer prefers this over `reasoning`. |
+| `implications[]` | object[] | yes | 3–6 strategic implication cards. See §5.1.2. Replaces the legacy single-string `implication_for_us` paragraph; once populated, the renderer prefers this over `implication_for_us`. |
+| `methodology_appendix` | string | yes | Verbatim long-form prose preserving the chain of reasoning behind the figures. Rendered inside a `<details>` collapsed by default. This is the loss-less back-stop: every fact in the wall-of-text version must survive here. |
 | `sources[]` | object[] | yes | Citations supporting the numbers |
 | `sources[].title` | string | yes | Human title of the source |
 | `sources[].url` | string | yes | URL of the source |
-| `implication_for_us` | string | yes | What this sizing means for our go-to-market |
+| `reasoning` | string | no | DEPRECATED legacy field. New projects MUST omit this and rely on `derivation_flow` + `methodology_appendix`. Existing projects may keep it for back-compat; if both `reasoning` and `methodology_appendix` are present, the renderer uses `methodology_appendix`. |
+| `implication_for_us` | string | no | DEPRECATED legacy field. New projects MUST omit this and rely on `implications[]`. Existing projects may keep it for back-compat; if both are present, the renderer uses `implications[]`. |
+
+#### 5.1.1 `derivation_flow`
+
+A three-stage object — exactly the keys `tam`, `sam`, `som` — each pointing to a stage block. Stage blocks share one shape; what changes is how the `stacks[]` array is populated (TAM stacks are bottom-up market layers, SAM stacks are reach-filtered subsets or per-region rollups, SOM stacks are revenue channels or year-by-year ramp rows).
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `derivation_flow.<stage>.stage_label` | string | yes | Short uppercase label, e.g. `"STAGE 1 · TAM"` |
+| `derivation_flow.<stage>.subtitle` | string | yes | One-sentence framing of what this stage represents (≤ 200 chars) |
+| `derivation_flow.<stage>.result_label` | string | yes | Display string for the stage total (e.g. `"A$528M"`); the numeric ground truth lives in `tam_sgd` / `sam_sgd` / `som_sgd` |
+| `derivation_flow.<stage>.total_equation` | string | yes | The arithmetic that yields the result, e.g. `"228 + 41 + 16 + 84"` or `"30% × S$816M"` |
+| `derivation_flow.<stage>.filters[]` | string[] | no | Qualitative criteria narrowing this stage from the previous one (typically used on `sam`). Each entry ≤ 100 chars. Rendered as a chip row above the stacks. |
+| `derivation_flow.<stage>.stacks[]` | object[] | yes | One entry per build-up component. See below. Minimum 1 stack per stage. |
+| `derivation_flow.<stage>.stacks[].name` | string | yes | Short title for the stack (≤ 80 chars) |
+| `derivation_flow.<stage>.stacks[].source` | string | yes | Citation or methodology note for this specific stack (≤ 160 chars) |
+| `derivation_flow.<stage>.stacks[].inputs[]` | object[] | yes | Label/value pairs displayed as chips. Minimum 1 input. |
+| `derivation_flow.<stage>.stacks[].inputs[].label` | string | yes | Short label (≤ 30 chars) |
+| `derivation_flow.<stage>.stacks[].inputs[].value` | string | yes | Display value with units (≤ 30 chars) |
+| `derivation_flow.<stage>.stacks[].equation` | string | yes | The arithmetic for this single stack (≤ 120 chars) |
+| `derivation_flow.<stage>.stacks[].result_label` | string | yes | Display string for the stack's contribution to the stage total |
+
+#### 5.1.2 `implications[]`
+
+Strategic reads of what the sizing means for the project. Replaces the second wall-of-text paragraph that historically lived in `implication_for_us`. Each item is one decision, one segment, or one timeline — never a generic "monitor the market." See §3 of `02-market-intelligence-analyst.md` for the implication-quality rubric.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `implications[].headline` | string | yes | Punchy one-line decision or framing (≤ 90 chars). Example: `"Series A justified without dominance"` |
+| `implications[].body` | string | yes | 2–3 sentence elaboration. Names a concrete action, segment, or timeline. (≤ 480 chars) |
+| `implications[].agent_targets[]` | string[] | no | Which downstream agents act on this implication, e.g. `["agent_3", "agent_4"]`. Used by the report-generator to thread the narrative into later sections. |
 
 ### 5.2 `policies[]`
 

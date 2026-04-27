@@ -20,13 +20,14 @@ This agent is cross-cutting rather than sequential — it does not produce new d
 
 ## Visualisation inventory (reference)
 
-The template ships five visualisations. Every file below is the canonical source; do not fork a chart into a page-local script.
+The template ships six visualisations. Every file below is the canonical source; do not fork a chart into a page-local script.
 
 - **Radar** — `template/assets/js/viz/radar.js` (Chart.js radar controller).
 - **Heatmap** — `template/assets/js/viz/heatmap.js` (HTML + CSS grid, **not** Chart.js — the grid cells need to be DOM clickable with per-cell detail panels, which Chart.js canvases cannot do cleanly).
 - **Price bars** — `template/assets/js/viz/price-bars.js` (Chart.js horizontal bar controller).
 - **Donut** — `template/assets/js/viz/donut.js` (Chart.js doughnut controller).
 - **Search + filter** — `template/assets/js/viz/search.js` (vanilla JS predicate + debounced input).
+- **Market sizing funnel** — `template/assets/js/viz/market-funnel.js` (HTML + CSS, no Chart.js — three stage blocks plus arrow connectors, plus an implications grid and a `<details>` appendix).
 
 Every viz exports two shapes: a pure helper for logic (tested under `_tests/`) and a render function that accepts a DOM container plus the relevant JSON slice. Render functions never fetch data themselves; the admin page wires the JSON through.
 
@@ -80,6 +81,26 @@ If `detail` is `null` (deselection), the panel clears but keeps its slot in the 
 **Worked example.** User clicks the cell at `SG SME × Data-residency compliance`. Heatmap dispatches `heatmap:cell-selected` with `cell.competitors = [{id: 'acme', score: 5}, {id: 'beta', score: 4}, {id: 'chen', score: 3}]`. Panel looks up `competitors.json` for names, sorts by score desc (Acme 5, Beta 4, Chen 3), renders banner `CONTESTED · CHOOSE WISELY` (amber, 3 at ≥3 = amber band), then three lines each with the pair-specific specialisation that Agent 4 wrote. If Beta and Chen both had score 4, alphabetical tie-break places Beta before Chen.
 
 **What the panel does not do.** It does not re-score, re-rank, or re-write specialisations. It is a dumb renderer over Agent 4's output. If the panel looks wrong, the fix is in Agent 4's JSON, not in `panel.js`.
+
+## Market sizing funnel contract (strict)
+
+The funnel is the canonical render for `market-intelligence.json` `market_size.derivation_flow`. It replaced the legacy "wall-of-text reasoning + wall-of-text implication" rendering that Agent 6 used to produce. Strict rules, because Agent 2 writes the structured shape against this contract:
+
+- **Three stage blocks** in fixed order: TAM → SAM → SOM. Each block reads its slice from `derivation_flow.tam`, `derivation_flow.sam`, `derivation_flow.som` respectively. If any stage is missing in the JSON, render an inline error block — do not silently skip.
+- **Arrow connectors** between adjacent stage blocks. Each arrow carries an optional filter-tag label sourced from the *receiving* stage's first `filters[]` entry (or a default label `"Reach filter"` for TAM→SAM and `"Capture filter"` for SAM→SOM).
+- **Stage block layout** — head row (stage_label + subtitle on the left, big result_label on the right), optional `filters[]` chip row, stacks grid (`repeat(auto-fit, minmax(280px, 1fr))`), total bar (total_equation ≈ result_label).
+- **Stack card layout** — name + result_label on the head, source line in italic, inputs as label/value chips, equation in a code-styled monospace block.
+- **Banding by stage** — stage block CSS receives a modifier class (`tam`, `sam`, `som`) that paints the top border, the stage-label colour, the result-label colour, and the equation chip background. Do not theme stage blocks any other way; the modifier class is the contract.
+- **Implications row** — `derivation_flow` is followed by an `implications[]` grid: one card per item, with the headline in display font and the body underneath. Cards render in input order; do not sort.
+- **Methodology appendix** — `methodology_appendix` renders inside a `<details>` element, summary text `"Methodology & full derivation"`, collapsed by default. The verbatim prose lives inside the panel as a single `<p>`.
+- **Sources line** — render `sources[]` as a comma-separated list of underlined `<a>` links beneath the appendix.
+- **Legacy fallback** — if `derivation_flow` is absent but `reasoning` is present, fall back to a single `<p>` rendering of `reasoning`. If `implications[]` is absent but `implication_for_us` is present, render that as a single `<p>` with a `What this means:` lead. The fallback paths exist only for projects that have not yet migrated; new projects must populate the structured shape.
+
+`buildFunnelData(market_size)` is the pure helper. It takes `market_size` and returns a normalised object with `stages[]`, `implications[]`, `appendix`, `sources[]`, and `legacy_mode: boolean`. The render function consumes this normalised shape so there is exactly one path that handles fallback logic.
+
+**Worked example.** Input `market_size.derivation_flow.tam.stacks[]` has 4 entries (AU, HK, SG, APAC-shoulder), each with `inputs: [{label: "Beds", value: "..."}, {label: "ARPU", value: "..."}]` and `equation: "<beds> × <arpu> × 12"`. The TAM stage block paints with the `tam` modifier (gold top border on Passage, brand-primary on XinceAI), shows four stack cards in a grid, and totals at the bottom with the equation `"228 + 41 + 16 + 84"` ≈ `"A$528M"`. The SAM block follows with `filters[]` rendered as three chips above its stacks. Arrow between TAM and SAM carries the label `"> 60-bed scale"` (the first SAM filter).
+
+**Why HTML + CSS grid, not Chart.js.** The funnel's value comes from per-cell text density (per-stack inputs as label/value chips, equation strings in monospace, source citations in italic). A Chart.js render would lose all that — funnels in Chart.js are pure rectangles with a single label per slice. The funnel is read top-to-bottom by reviewers checking arithmetic; that is a DOM/text task, not a canvas/graphics task.
 
 ## Search contract
 
@@ -260,6 +281,11 @@ Self-audit before declaring Agent 6 done.
 - [ ] Pure-logic tests exist for `cellCount`, `cellBand`, `buildCellDetail`, `matchesCompetitor`, `computePageIndex`, `buildRadarData`.
 - [ ] Chart.js init wrapped in IntersectionObserver; no immediate paint for off-screen charts.
 - [ ] Heatmap container observed with ResizeObserver, not `window.resize`.
+- [ ] Market sizing funnel renders TAM → SAM → SOM in fixed order with arrow connectors carrying filter-tag labels.
+- [ ] Each stage block applies the correct modifier class (`tam`, `sam`, `som`) — top border, label colour, total colour, equation chip background all keyed off it.
+- [ ] `implications[]` cards render in input order, one per array entry, no client-side sort.
+- [ ] `methodology_appendix` lives inside `<details>` collapsed by default, summary `"Methodology & full derivation"`.
+- [ ] Legacy fallback path triggers only when `derivation_flow` or `implications[]` is absent — and never silently overrides structured data.
 - [ ] Manual browser QA walked against `methodology/08-qa-checklist.md`.
 - [ ] Contract documented here for any new viz added in this run.
 
