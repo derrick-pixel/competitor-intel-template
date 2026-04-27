@@ -4,9 +4,9 @@ You are starting a new analytics project based on this template. Read this first
 
 ## What's here
 
-- Eight subagents in `.claude/agents/` — dispatch via `Agent(subagent_type: <slug>)`.
-- Nine methodology files in `/methodology/` — each agent reads its paired file first.
-- Nine invocation prompts in `/prompts/` — literal text to pass to each agent.
+- Nine subagents in `.claude/agents/` — dispatch via `Agent(subagent_type: <slug>)`.
+- Ten methodology files in `/methodology/` — each agent reads its paired file first.
+- Ten invocation prompts in `/prompts/` — literal text to pass to each agent.
 - Scaffold in `/template/` with all visualisations wired on sample data.
 - Field dictionary in `/methodology/FIELD-DICTIONARY.md` — canonical schema.
 
@@ -22,8 +22,9 @@ You are starting a new analytics project based on this template. Read this first
 | 6 | data-visualization-engineer | Charts + search UX |
 | 7 | methodology-curator | Freshness ritual (meta) |
 | 8 | report-generator | Full-bleed PDF compiled from 1–6 |
+| 9 | aesthetics-presenter | Final beautify pass — re-skins admin pages to resonate with the target brand's public site (opt-in, runs after human review) |
 
-**File numbering reflects addition order, not workflow.** Workflow order: 1 → 2 → 3 → 4 → 5 → 6 → 8. Agent 7 runs later.
+**File numbering reflects addition order, not workflow.** Workflow order: 1 → 2 → 3 → 4 → 5 → 6 → 8. Agent 7 runs later. Agent 9 runs **last and only when explicitly requested** — after the human has reviewed and approved the un-styled layout.
 
 ## Starting a new project
 
@@ -44,4 +45,6 @@ You are starting a new analytics project based on this template. Read this first
 
 ## When the project is done
 
-Dispatch Agent 7 (methodology-curator) against the finished project. See `/prompts/extract-new-patterns.md`.
+1. Dispatch Agent 7 (methodology-curator) against the finished project. See `/prompts/extract-new-patterns.md`.
+2. Hand off to the human for layout review.
+3. Once layout is approved, dispatch Agent 9 (aesthetics-presenter) to beautify. See `/prompts/invoke-aesthetics-presenter.md`. Agent 9 reads the target brand's public site, extracts brand tokens, and re-skins every admin page so the analytics dashboards feel like the same product as the brand's public site. Reference admins for the proven card patterns: `/codings/xinceai/admin/`, `/codings/elix-eor/admin/`, `/codings/elitez-events/admin/`.
